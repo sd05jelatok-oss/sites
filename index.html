@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAME KAMERA BENAR ATAU SALAH</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+            background-color: #0f172a;
+        }
+
+        /* 16:9 Aspect Ratio Container Enforcement */
+        .aspect-16-9-wrapper {
+            width: 100vw;
+            height: 100vh;
+            max-width: 177.78vh; /* 16:9 ratio lock */
+            max-height: 56.25vw; /* 16:9 ratio lock */
+            margin: auto;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Camera Box Styles (Rasio 15:6) */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            padding-top: 40%; /* 15:6 ratio (6/15 = 40%) */
+            background-color: #1e293b;
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 4px solid #334155;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .camera-inner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+
+        #webcam-video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror view */
+        }
+
+        .camera-overlay-boxes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .camera-box-half {
+            flex: 1;
+            height: 100%;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+
+        .camera-box-left {
+            border-right: 4px solid #000000;
+        }
+
+        .camera-box-right {
+            border-left: 4px solid #000000;
+        }
+
+        .box-label {
+            position: absolute;
+            bottom: 12px;
+            font-size: 1.1rem;
+            font-weight: 900;
+            color: #000000;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 4px 14px;
+            border-radius: 6px;
+            border: 2px solid #000000;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        .box-label-left {
+            left: 14px;
+        }
+
+        .box-label-right {
+            right: 14px;
+        }
+
+        .overlay-correct {
+            background-color: rgba(34, 197, 94, 0.6) !important;
+        }
+
+        .overlay-wrong {
+            background-color: rgba(239, 68, 68, 0.6) !important;
+        }
+
+        .center-divider {
+            position: absolute;
+            left: 50%;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background-color: #000000;
+            transform: translateX(-50%);
+            z-index: 15;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-950 text-slate-100 flex items-center justify-center p-0 m-0">
+
+    <!-- Wrapper Utama Game Rasio 16:9 -->
+    <div class="aspect-16-9-wrapper bg-slate-900 border border-slate-800 p-4 md:p-6 overflow-hidden flex flex-col justify-between relative">
+        
+        <!-- HEADER TOP BAR (Navigasi & Fullscreen) -->
+        <header class="flex justify-between items-center z-20">
+            <!-- Left Side Controls (Stop Game Button - Dynamic) -->
+            <div>
+                <button id="btn-stop-game" onclick="stopGame()" class="hidden bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 shadow-lg animate-pulse">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    Hentikan Game
+                </button>
+            </div>
+
+            <!-- Header Badge Title -->
+            <div class="text-center">
+                <span class="bg-indigo-900/60 text-indigo-300 text-xs font-bold px-3 py-1 rounded-full border border-indigo-700/50 uppercase tracking-wider">
+                    Media Pembelajaran Interaktif
+                </span>
+            </div>
+
+            <!-- Right Side Controls (ONLY Fullscreen Button) -->
+            <div>
+                <button id="btn-fullscreen-toggle" onclick="toggleFullscreen()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-sm transition flex items-center gap-2 shadow-lg border border-indigo-400/30">
+                    <svg id="icon-fs-enter" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+                    <svg id="icon-fs-exit" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <span id="lbl-fullscreen">Layar Penuh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN VIEW CONTAINER -->
+        <main class="flex-1 flex flex-col justify-center my-2 relative z-10">
+
+            <!-- ================= PAGE 1: BERANDA ================= -->
+            <section id="page-home" class="flex flex-col items-center justify-center text-center space-y-6">
+                <!-- App Title -->
+                <div class="space-y-2">
+                    <h1 class="text-3xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-400 to-amber-500 tracking-tight drop-shadow-md">
+                        GAME KAMERA BENAR ATAU SALAH
+                    </h1>
+                    <p id="home-meta-info" class="text-slate-400 font-medium text-sm md:text-base">
+                        Bahasa Indonesia | Sinonim antonim | Kelas 6 SD
+                    </p>
+                </div>
+
+                <!-- Info Panel Box -->
+                <div class="grid grid-cols-2 gap-4 w-full max-w-lg bg-slate-800/80 p-4 rounded-2xl border border-slate-700/80 backdrop-blur-sm">
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center justify-center">
+                        <span class="text-xs text-slate-400 font-semibold uppercase">Jumlah Soal Main</span>
+                        <span id="info-total-soal" class="text-xl md:text-2xl font-black text-indigo-400 mt-1">10 Soal</span>
+                    </div>
+                    <div class="bg-slate-900/60 p-3 rounded-xl border border-slate-700/50 flex flex-col items-center justify-center">
+                        <span class="text-xs text-slate-400 font-semibold uppercase">Waktu Per Soal</span>
+                        <span id="info-waktu-soal" class="text-xl md:text-2xl font-black text-amber-400 mt-1">10 Detik</span>
+                    </div>
+                </div>
+
+                <!-- Main Action Buttons -->
+                <div class="flex flex-wrap justify-center gap-4 w-full max-w-xl pt-2">
+                    <button id="btn-start-game" onclick="startGame()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold text-lg px-8 py-3.5 rounded-2xl shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path></svg>
+                        Mulai Game
+                    </button>
+
+                    <button onclick="testCameraModal()" class="bg-slate-800 hover:bg-slate-700 text-sky-400 font-bold px-5 py-3.5 rounded-2xl border border-slate-700 transition flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        Aktifkan / Uji Kamera
+                    </button>
+
+                    <button onclick="openTeacherSettings()" class="bg-slate-800 hover:bg-slate-700 text-purple-400 font-bold px-5 py-3.5 rounded-2xl border border-slate-700 transition flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                        Pengaturan Guru
+                    </button>
+                </div>
+            </section>
+
+            <!-- ================= PAGE 2: GAMEPLAY INTERAKTIF ================= -->
+            <section id="page-game" class="hidden flex-col h-full justify-between space-y-3">
+                
+                <!-- Panel Soal (Tengah Atas) -->
+                <div class="bg-slate-800/90 border border-slate-700 p-4 rounded-2xl shadow-lg text-center max-w-4xl mx-auto w-full relative">
+                    <div class="flex justify-between items-center mb-2 px-2">
+                        <span id="game-progress-label" class="bg-indigo-900/80 text-indigo-300 font-bold px-3 py-1 rounded-lg text-xs border border-indigo-700">Soal 1 / 10</span>
+                        
+                        <!-- Timer Counter -->
+                        <div class="flex items-center gap-1.5 bg-amber-500/20 text-amber-300 px-3 py-1 rounded-lg border border-amber-500/40 font-extrabold text-sm">
+                            <svg class="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            <span id="game-timer-display">10</span>s
+                        </div>
+
+                        <span id="game-score-display" class="bg-emerald-900/80 text-emerald-300 font-bold px-3 py-1 rounded-lg text-xs border border-emerald-700">Skor: 0</span>
+                    </div>
+
+                    <!-- Question Text Display -->
+                    <div class="min-h-[60px] flex items-center justify-center">
+                        <h2 id="game-question-text" class="text-xl md:text-2xl font-extrabold text-white leading-snug px-4">
+                            Memuat pertanyaan...
+                        </h2>
+                    </div>
+                </div>
+
+                <!-- Panel Kamera & Zona Jawaban (15:6) -->
+                <div class="relative w-full max-w-4xl mx-auto flex-1 flex items-center">
+                    <div class="camera-container">
+                        <div class="camera-inner">
+                            <video id="webcam-video" autoplay playsinline muted></video>
+                            
+                            <!-- Placeholder if Camera Off -->
+                            <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-800 text-white z-0 p-4 text-center">
+                                <svg class="w-12 h-12 text-slate-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                <p class="text-xs font-semibold text-slate-400 mb-1">Kamera Belum Aktif / Perlu Izin PID</p>
+                                <p class="text-[11px] text-slate-500 max-w-md mb-3">Jika menggunakan Papan Interaktif (PID), tekan tombol di bawah ini lalu pilih <b>"Izinkan / Allow"</b> pada pop-up sistem browser.</p>
+                                <button onclick="startCamera()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 shadow-lg">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    Izinkan & Aktifkan Kamera
+                                </button>
+                            </div>
+                            
+                            <!-- Overlay Boxes Split in Half -->
+                            <div class="camera-overlay-boxes">
+                                <div id="box-left" class="camera-box-half camera-box-left">
+                                    <span class="box-label box-label-left">A. BENAR</span>
+                                </div>
+                                <div class="center-divider"></div>
+                                <div id="box-right" class="camera-box-half camera-box-right">
+                                    <span class="box-label box-label-right">B. SALAH</span>
+                                </div>
+                            </div>
+
+                            <!-- Answer Reveal Central Overlay -->
+                            <div id="answer-overlay" class="hidden absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+                                <div class="bg-yellow-400 text-slate-900 border-4 border-slate-900 font-black text-2xl md:text-4xl px-6 py-3 rounded-2xl shadow-2xl transform scale-105 transition-all">
+                                    <span id="lbl-answer-announcement">JAWABAN A</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- FOOTER (CREATOR CREDITS) -->
+        <footer class="text-center pt-2 border-t border-slate-800/80 z-20">
+            <p class="text-xs text-slate-400 font-medium">
+                Didesain untuk Media Pembelajaran Interaktif &bull; Creator: <span class="font-extrabold text-amber-400 tracking-wide">Herry Pernando</span>
+            </p>
+        </footer>
+    </div>
+
+    <!-- ================= MODAL 1: PENGATURAN GURU & BANK SOAL ================= -->
+    <div id="modal-settings" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-900">
+                <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                    <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+                    Pengaturan Guru & Bank Soal
+                </h3>
+                <button onclick="closeTeacherSettings()" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+
+            <!-- Modal Content (Tabs + Forms) -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                <!-- Config Pembelajaran Section -->
+                <div class="bg-slate-800/60 p-5 rounded-2xl border border-slate-700/60 space-y-4">
+                    <h4 class="text-sm font-bold text-purple-400 uppercase tracking-wider">A. Konfigurasi Pembelajaran</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Jenjang & Kelas</label>
+                            <input type="text" id="cfg-jenjang" value="SD / Kelas 6" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Mata Pelajaran</label>
+                            <input type="text" id="cfg-mapel" value="Bahasa Indonesia" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Topik / Materi</label>
+                            <input type="text" id="cfg-topik" value="Sinonim antonim" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Tujuan Pembelajaran (TP)</label>
+                            <textarea id="cfg-tp" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">Siswa mampu mengidentifikasi sinonim dan antonim kata dalam Bahasa Indonesia dengan tepat.</textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-300 mb-1">Petunjuk Game</label>
+                            <textarea id="cfg-petunjuk" rows="2" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">Pilih Zona A untuk BENAR atau Zona B untuk SALAH dengan bergeser ke arah layar kamera!</textarea>
+                        </div>
+                    </div>
+
+                    <div class="w-full md:w-1/3">
+                        <label class="block text-xs font-semibold text-slate-300 mb-1">Waktu Per Soal (Detik)</label>
+                        <input type="number" id="cfg-timer" value="10" min="3" max="60" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-purple-500">
+                    </div>
+                </div>
+
+                <!-- Bank Soal Section -->
+                <div class="bg-slate-800/60 p-5 rounded-2xl border border-slate-700/60 space-y-4">
+                    <div class="flex flex-wrap justify-between items-center gap-2">
+                        <h4 class="text-sm font-bold text-indigo-400 uppercase tracking-wider">B. Bank Soal (<span id="count-question-total">0</span> Soal)</h4>
+                        <div class="flex gap-2">
+                            <button onclick="openFormAddQuestion()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1">
+                                + Tambah Soal
+                            </button>
+                            <button onclick="exportQuestionsJSON()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition">
+                                Ekspor JSON
+                            </button>
+                            <label class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-bold px-3 py-2 rounded-xl transition cursor-pointer">
+                                Impor JSON
+                                <input type="file" id="input-import-json" accept=".json" onchange="importQuestionsJSON(event)" class="hidden">
+                            </label>
+                            <button onclick="resetDefaultQuestions()" class="bg-rose-900/50 hover:bg-rose-800 text-rose-200 text-xs font-bold px-3 py-2 rounded-xl border border-rose-700/50 transition">
+                                Reset Default (100 Soal)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Question List Table/Cards -->
+                    <div id="question-list-container" class="space-y-2 max-h-60 overflow-y-auto pr-1">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 flex justify-end gap-3 bg-slate-900">
+                <button onclick="closeTeacherSettings()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-5 py-2.5 rounded-xl text-sm transition">
+                    Tutup
+                </button>
+                <button onclick="saveTeacherSettings()" class="bg-purple-600 hover:bg-purple-700 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">
+                    Simpan Pengaturan
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: FORMKULIR TAMBAH/EDIT SOAL ================= -->
+    <div id="modal-question-form" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg p-6 space-y-4 shadow-2xl">
+            <h3 id="lbl-question-form-title" class="text-lg font-bold text-white">Tambah Soal Baru</h3>
+            
+            <input type="hidden" id="form-question-id">
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Pertanyaan / Pernyataan</label>
+                <textarea id="form-question-text" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="Contoh: Sinonim dari kata 'Besar' adalah 'Agung'"></textarea>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Kunci Jawaban</label>
+                    <select id="form-question-key" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="A">A. BENAR</option>
+                        <option value="B">B. SALAH</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">Tingkat Kesulitan</label>
+                    <select id="form-question-level" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="Mudah">Mudah</option>
+                        <option value="Sedang">Sedang</option>
+                        <option value="Sulit">Sulit</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1">Pembahasan Singkat (Opsional)</label>
+                <input type="text" id="form-question-explain" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="Penjelasan jawaban...">
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeQuestionForm()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2 rounded-xl text-xs transition">Batal</button>
+                <button onclick="saveQuestionItem()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-2 rounded-xl text-xs transition">Simpan Soal</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3: GAME OVER / HASIL PERMAINAN ================= -->
+    <div id="modal-gameover" class="hidden fixed inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-md p-6 text-center space-y-5 shadow-2xl">
+            <div class="inline-flex p-4 bg-emerald-500/20 text-emerald-400 rounded-full border border-emerald-500/30">
+                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <div>
+                <h3 class="text-2xl font-black text-white">Permainan Selesai!</h3>
+                <p class="text-slate-400 text-xs mt-1">Hasil evaluasi pembelajaran siswa</p>
+            </div>
+
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-2">
+                <div class="text-xs text-slate-400 font-semibold uppercase">Skor Akhir</div>
+                <div id="final-score" class="text-5xl font-black text-yellow-400">100</div>
+                <div id="final-detail" class="text-xs text-slate-300 pt-1">Benar: 10 / 10 Soal</div>
+            </div>
+
+            <button onclick="backToHome()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3.5 rounded-xl shadow-lg transition">
+                Kembali ke Beranda
+            </button>
+        </div>
+    </div>
+
+    <!-- Custom Alert Box -->
+    <div id="custom-alert" class="hidden fixed top-6 left-1/2 transform -translate-x-1/2 z-50 bg-rose-600 text-white font-bold px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-2 border border-rose-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+        <span id="custom-alert-msg">Pesan alert...</span>
+    </div>
+
+    <!-- LOGIKA APLIKASI (VANILLA JS) -->
+    <script>
+        /* ================= 1. STATE MANAGEMENT ================= */
+        const STORAGE_KEY_CONFIG = 'game_kamera_config_v1';
+        const STORAGE_KEY_QUESTIONS = 'game_kamera_questions_v1';
+
+        let appConfig = {
+            jenjang: 'SD / Kelas 6',
+            mapel: 'Bahasa Indonesia',
+            topik: 'Sinonim antonim',
+            tp: 'Siswa mampu mengidentifikasi sinonim dan antonim kata dalam Bahasa Indonesia dengan tepat.',
+            petunjuk: 'Pilih Zona A untuk BENAR atau Zona B untuk SALAH dengan bergeser ke arah layar kamera!',
+            timer: 10
+        };
+
+        let questionBank = [];
+        let activeGameQuestions = [];
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let timerInterval = null;
+        let soundSynth = null;
+        let mediaStream = null;
+
+        /* Default 100 Soal (50 Sinonim & 50 Antonim) */
+        const default100Questions = [
+            // 50 SINONIM
+            { pertanyaan: "Sinonim kata 'Aroma' adalah 'Wangi'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Aroma bermakna wangi atau bau harum." },
+            { pertanyaan: "Sinonim kata 'Asa' adalah 'Harapan'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Asa bermakna harapan." },
+            { pertanyaan: "Sinonim kata 'Bahagia' adalah 'Sedih'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Sinonim bahagia adalah senang." },
+            { pertanyaan: "Sinonim kata 'Baju' adalah 'Pakaian'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Baju sama artinya dengan pakaian." },
+            { pertanyaan: "Sinonim kata 'Besar' adalah 'Agung'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Agung bermakna besar/mulia." },
+            { pertanyaan: "Sinonim kata 'Bisa' adalah 'Dapat'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Bisa berarti mampu/dapat." },
+            { pertanyaan: "Sinonim kata 'Bunga' mekar sama artinya dengan 'Kembang'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Bunga dan kembang memiliki arti serupa." },
+            { pertanyaan: "Sinonim kata 'Datar' adalah 'Rata'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Datar memiliki arti rata." },
+            { pertanyaan: "Sinonim kata 'Dinding' adalah 'Tembok'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Dinding searti dengan tembok." },
+            { pertanyaan: "Sinonim kata 'Dua' adalah 'Ganjil'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Dua adalah bilangan genap." },
+            { pertanyaan: "Sinonim kata 'Giat' adalah 'Rajin'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Giat berarti bersungguh-sungguh/rajin." },
+            { pertanyaan: "Sinonim kata 'Gugur' adalah 'Tumbuh'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Gugur berarti jatuh/gugur." },
+            { pertanyaan: "Sinonim kata 'Hemat' adalah 'Irit'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Hemat searti dengan irit." },
+            { pertanyaan: "Sinonim kata 'Hutan' adalah 'Rimba'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Hutan lebat disebut rimba." },
+            { pertanyaan: "Sinonim kata 'Indah' adalah 'Elok'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Indah searti dengan elok." },
+            { pertanyaan: "Sinonim kata 'Jawab' adalah 'Tanya'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Jawab berlawanan kata dengan tanya." },
+            { pertanyaan: "Sinonim kata 'Jujur' adalah 'Lurus Hati'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Jujur berarti lurus hati." },
+            { pertanyaan: "Sinonim kata 'Karakter' adalah 'Watak'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Karakter sama dengan watak." },
+            { pertanyaan: "Sinonim kata 'Kecil' adalah 'Mungil'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Mungil searti dengan kecil." },
+            { pertanyaan: "Sinonim kata 'Kelompok' adalah 'Grup'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Kelompok searti dengan grup." },
+            { pertanyaan: "Sinonim kata 'Kuno' adalah 'Modern'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Kuno adalah kebalikan dari modern." },
+            { pertanyaan: "Sinonim kata 'Laba' adalah 'Keuntungan'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Laba bermakna keuntungan." },
+            { pertanyaan: "Sinonim kata 'Laris' adalah 'Laku'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Laris bermakna banyak terjual." },
+            { pertanyaan: "Sinonim kata 'Laut' adalah 'Samudra'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Samudra adalah laut luas." },
+            { pertanyaan: "Sinonim kata 'Lega' adalah 'Lapang'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lega berarti merasa lapang." },
+            { pertanyaan: "Sinonim kata 'Luas' adalah 'Sempit'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Luas berlawanan dengan sempit." },
+            { pertanyaan: "Sinonim kata 'Mati' adalah 'Gugur'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Gugur searti dengan mati bagi pahlawan." },
+            { pertanyaan: "Sinonim kata 'Menggapai' adalah 'Meraih'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Menggapai bermakna meraih." },
+            { pertanyaan: "Sinonim kata 'Mentari' adalah 'Matahari'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Mentari searti dengan matahari." },
+            { pertanyaan: "Sinonim kata 'Mitra' adalah 'Kawan'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Mitra searti dengan kawan/rekan." },
+            { pertanyaan: "Sinonim kata 'Muda' adalah 'Belia'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Belia searti dengan muda." },
+            { pertanyaan: "Sinonim kata 'Pandai' adalah 'Pintar'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Pandai searti dengan pintar." },
+            { pertanyaan: "Sinonim kata 'Paras' adalah 'Wajah'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Paras bermakna wajah." },
+            { pertanyaan: "Sinonim kata 'Piknik' adalah 'Tamasya'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Piknik searti dengan bertamasya." },
+            { pertanyaan: "Sinonim kata 'Pita' adalah 'Tali'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Pita jenis tali pengikat." },
+            { pertanyaan: "Sinonim kata 'Pria' adalah 'Wanita'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Pria adalah lawan kata wanita." },
+            { pertanyaan: "Sinonim kata 'Rabu' adalah 'Kamis'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Rabu dan Kamis nama hari yang berbeda." },
+            { pertanyaan: "Sinonim kata 'Rumah' adalah 'Hunian'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Rumah searti dengan tempat hunian." },
+            { pertanyaan: "Sinonim kata 'Sahabat' adalah 'Teman'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Sahabat searti dengan teman." },
+            { pertanyaan: "Sinonim kata 'Satu' adalah 'Eka'.", kunci_jawaban: "A", tingkat_kesulitan: "Sulit", pembahasan: "Eka bermakna satu." },
+            { pertanyaan: "Sinonim kata 'Sebentar' adalah 'Kejap'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Sejurus/sekejap berarti sebentar." },
+            { pertanyaan: "Sinonim kata 'Sedih' mekar sama artinya dengan 'Duka'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Sedih searti dengan duka." },
+            { pertanyaan: "Sinonim kata 'Sempurna' adalah 'Cacat'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Sempurna berlawanan dengan cacat." },
+            { pertanyaan: "Sinonim kata 'Suram' adalah 'Gelap'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Suram searti dengan redup/gelap." },
+            { pertanyaan: "Sinonim kata 'Target' adalah 'Sasaran'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Target searti dengan sasaran." },
+            { pertanyaan: "Sinonim kata 'Tinggi' adalah 'Rendah'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Tinggi berlawanan dengan rendah." },
+            { pertanyaan: "Sinonim kata 'Uang' adalah 'Koin'.", kunci_jawaban: "B", tingkat_kesulitan: "Sedang", pembahasan: "Koin hanya salah satu bentuk uang." },
+            { pertanyaan: "Sinonim kata 'Utama' adalah 'Primer'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Utama searti dengan primer." },
+            { pertanyaan: "Sinonim kata 'Warga' adalah 'Anggota'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Warga berarti anggota masyarakat." },
+            { pertanyaan: "Sinonim kata 'Zaman' adalah 'Era'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Zaman searti dengan era." },
+
+            // 50 ANTONIM
+            { pertanyaan: "Antonim kata 'Abadi' adalah 'Fana'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata abadi adalah fana." },
+            { pertanyaan: "Antonim kata 'Aktif' adalah 'Pasif'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata aktif adalah pasif." },
+            { pertanyaan: "Antonim kata 'Asli' adalah 'Palsu'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata asli adalah palsu." },
+            { pertanyaan: "Antonim kata 'Banyak' adalah 'Sedikit'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata banyak adalah sedikit." },
+            { pertanyaan: "Antonim kata 'Basah' adalah 'Kering'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata basah adalah kering." },
+            { pertanyaan: "Antonim kata 'Berani' adalah 'Takut'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata berani adalah penakut/takut." },
+            { pertanyaan: "Antonim kata 'Bersih' adalah 'Kotor'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata bersih adalah kotor." },
+            { pertanyaan: "Antonim kata 'Besar' adalah 'Kecil'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata besar adalah kecil." },
+            { pertanyaan: "Antonim kata 'Cepat' adalah 'Lambat'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata cepat adalah lambat." },
+            { pertanyaan: "Antonim kata 'Dekat' adalah 'Jauh'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata dekat adalah jauh." },
+            { pertanyaan: "Antonim kata 'Dingin' adalah 'Sejuk'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Dingin searti dengan sejuk, antonimnya panas." },
+            { pertanyaan: "Antonim kata 'Gelap' adalah 'Terang'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata gelap adalah terang." },
+            { pertanyaan: "Antonim kata 'Gemuk' adalah 'Kurus'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata gemuk adalah kurus." },
+            { pertanyaan: "Antonim kata 'Hemat' adalah 'Boros'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata hemat adalah boros." },
+            { pertanyaan: "Antonim kata 'Hidup' adalah 'Mati'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata hidup adalah mati." },
+            { pertanyaan: "Antonim kata 'Indah' adalah 'Jelek'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata indah adalah buruk/jelek." },
+            { pertanyaan: "Antonim kata 'Jujur' adalah 'Bohong'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata jujur adalah bohong." },
+            { pertanyaan: "Antonim kata 'Kasar' adalah 'Halus'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata kasar adalah halus." },
+            { pertanyaan: "Antonim kata 'Kaya' adalah 'Miskin'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata kaya adalah miskin." },
+            { pertanyaan: "Antonim kata 'Kuat' mekar adalah 'Tangguh'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Kuat searti dengan tangguh, antonimnya lemah." },
+            { pertanyaan: "Antonim kata 'Lama' adalah 'Baru'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata lama adalah baru." },
+            { pertanyaan: "Antonim kata 'Luas' adalah 'Sempit'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata luas adalah sempit." },
+            { pertanyaan: "Antonim kata 'Mahal' adalah 'Murah'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata mahal adalah murah." },
+            { pertanyaan: "Antonim kata 'Maju' adalah 'Mundur'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata maju adalah mundur." },
+            { pertanyaan: "Antonim kata 'Manis' adalah 'Pahit'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata manis adalah pahit." },
+            { pertanyaan: "Antonim kata 'Masuk' adalah 'Keluar'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata masuk adalah keluar." },
+            { pertanyaan: "Antonim kata 'Modern' adalah 'Tradisional'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata modern adalah kuno/tradisional." },
+            { pertanyaan: "Antonim kata 'Mudah' adalah 'Gampang'.", kunci_jawaban: "B", tingkat_kesulitan: "Mudah", pembahasan: "Mudah searti dengan gampang, antonimnya sulit." },
+            { pertanyaan: "Antonim kata 'Naik' adalah 'Turun'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata naik adalah turun." },
+            { pertanyaan: "Antonim kata 'Panas' adalah 'Dingin'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata panas adalah dingin." },
+            { pertanyaan: "Antonim kata 'Panjang' adalah 'Pendek'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata panjang adalah pendek." },
+            { pertanyaan: "Antonim kata 'Patuhi' adalah 'Langgar'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata patuh adalah langgar." },
+            { pertanyaan: "Antonim kata 'Pintar' adalah 'Bodoh'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata pintar adalah bodoh." },
+            { pertanyaan: "Antonim kata 'Pagi' adalah 'Malam'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata pagi adalah malam." },
+            { pertanyaan: "Antonim kata 'Positif' adalah 'Negatif'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata positif adalah negatif." },
+            { pertanyaan: "Antonim kata 'Rajin' adalah 'Malas'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata rajin adalah malas." },
+            { pertanyaan: "Antonim kata 'Ramai' adalah 'Sepi'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata ramai adalah sepi." },
+            { pertanyaan: "Antonim kata 'Rendah' adalah 'Tinggi'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata rendah adalah tinggi." },
+            { pertanyaan: "Antonim kata 'Sehat' adalah 'Sakit'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata sehat adalah sakit." },
+            { pertanyaan: "Antonim kata 'Sekarang' adalah 'Nanti'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata sekarang adalah nanti." },
+            { pertanyaan: "Antonim kata 'Senang' adalah 'Sedih'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata senang adalah sedih." },
+            { pertanyaan: "Antonim kata 'Siang' adalah 'Malam'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata siang adalah malam." },
+            { pertanyaan: "Antonim kata 'Tebal' adalah 'Tipis'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata tebal adalah tipis." },
+            { pertanyaan: "Antonim kata 'Terbit' adalah 'Tenggelam'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata terbit adalah tenggelam." },
+            { pertanyaan: "Antonim kata 'Terang' adalah 'Gelap'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata terang adalah gelap." },
+            { pertanyaan: "Antonim kata 'Tetap' adalah 'Berubah'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata tetap adalah berubah." },
+            { pertanyaan: "Antonim kata 'Tua' adalah 'Muda'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata tua adalah muda." },
+            { pertanyaan: "Antonim kata 'Untung' adalah 'Rugi'.", kunci_jawaban: "A", tingkat_kesulitan: "Mudah", pembahasan: "Lawan kata untung adalah rugi." },
+            { pertanyaan: "Antonim kata 'Utama' adalah 'Sekunder'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata utama adalah sekunder." },
+            { pertanyaan: "Antonim kata 'Waspada' adalah 'Lengah'.", kunci_jawaban: "A", tingkat_kesulitan: "Sedang", pembahasan: "Lawan kata waspada adalah lengah." }
+        ];
+
+        /* Initialize App on Load */
+        window.onload = function() {
+            loadConfig();
+            loadQuestions();
+            updateUIHome();
+        };
+
+        /* ================= 2. AUDIO & SPEECH SYNTHESIS ================= */
+        function playBeep(freq = 440, type = 'sine', duration = 0.15) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + duration);
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) { console.log('Audio Context Error:', e); }
+        }
+
+        // Speech Google Synthesis Logic (Hanya membaca teks pertanyaan tanpa bocoran jawaban)
+        function speakQuestionText(text) {
+            if (!('speechSynthesis' in window)) return;
+            window.speechSynthesis.cancel(); // Reset previous voice
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'id-ID';
+            utterance.rate = 0.92; // Kecepatan jelas & artikulatif
+            utterance.pitch = 1.0;
+
+            const voices = window.speechSynthesis.getVoices();
+            const idVoice = voices.find(v => (v.lang.includes('id') || v.lang.includes('ID')) && v.name.toLowerCase().includes('google'));
+            if (idVoice) utterance.voice = idVoice;
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        /* ================= 3. LOCAL STORAGE MANAGEMENT ================= */
+        function loadConfig() {
+            const saved = localStorage.getItem(STORAGE_KEY_CONFIG);
+            if (saved) {
+                try { appConfig = { ...appConfig, ...JSON.parse(saved) }; } catch(e){}
+            }
+        }
+
+        function saveConfig() {
+            localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(appConfig));
+        }
+
+        function loadQuestions() {
+            const saved = localStorage.getItem(STORAGE_KEY_QUESTIONS);
+            if (saved) {
+                try {
+                    questionBank = JSON.parse(saved);
+                } catch(e) { questionBank = [...default100Questions]; }
+            } else {
+                questionBank = [...default100Questions];
+                localStorage.setItem(STORAGE_KEY_QUESTIONS, JSON.stringify(questionBank));
+            }
+        }
+
+        function saveQuestions() {
+            localStorage.setItem(STORAGE_KEY_QUESTIONS, JSON.stringify(questionBank));
+            updateUIHome();
+        }
+
+        function updateUIHome() {
+            document.getElementById('home-meta-info').innerText = `${appConfig.mapel} | ${appConfig.topik} | ${appConfig.jenjang}`;
+            document.getElementById('info-total-soal').innerText = `10 Soal`;
+            document.getElementById('info-waktu-soal').innerText = `${appConfig.timer} Detik`;
+
+            const btnStart = document.getElementById('btn-start-game');
+            if (questionBank.length < 1) {
+                btnStart.disabled = true;
+                btnStart.classList.add('opacity-50', 'cursor-not-allowed');
+            } else {
+                btnStart.disabled = false;
+                btnStart.classList.remove('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        /* ================= 4. WEBRTC CAMERA ================= */
+        async function startCamera() {
+            try {
+                const videoEl = document.getElementById('webcam-video');
+                const placeholder = document.getElementById('camera-placeholder');
+
+                if (mediaStream) { stopCamera(); }
+
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    throw new Error("Kamera tidak didukung oleh browser ini. Pastikan membuka file HTML via browser modern.");
+                }
+
+                // Fallback constraints khusus untuk Papan Interaktif Digital (PID) & Kamera USB
+                const constraintsList = [
+                    { video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, audio: false },
+                    { video: { width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+                    { video: true, audio: false }
+                ];
+
+                let stream = null;
+                let lastError = null;
+
+                // Coba konfigurasi kamera berurutan agar kompatibel di berbagai sistem PID
+                for (const constraints of constraintsList) {
+                    try {
+                        stream = await navigator.mediaDevices.getUserMedia(constraints);
+                        if (stream) break;
+                    } catch (err) {
+                        lastError = err;
+                    }
+                }
+
+                if (!stream) throw lastError;
+
+                mediaStream = stream;
+                videoEl.srcObject = mediaStream;
+                videoEl.onloadedmetadata = () => {
+                    videoEl.play();
+                    if (placeholder) placeholder.classList.add('hidden');
+                };
+            } catch (err) {
+                console.warn("Camera access warning:", err);
+                const placeholder = document.getElementById('camera-placeholder');
+                if (placeholder) {
+                    placeholder.classList.remove('hidden');
+                }
+                
+                let errorMsg = "Akses kamera ditolak. Tekan tombol 'Izinkan Kamera' dan pilih Allow pada browser PID Anda.";
+                if (err && (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError')) {
+                    errorMsg = "Kamera USB / Perangkat Kamera PID tidak terdeteksi.";
+                } else if (err && (err.name === 'NotReadableError' || err.name === 'TrackStartError')) {
+                    errorMsg = "Kamera sedang digunakan oleh aplikasi lain di PID.";
+                }
+                
+                alertBox(errorMsg);
+            }
+        }
+
+        function stopCamera() {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+                mediaStream = null;
+            }
+            const videoEl = document.getElementById('webcam-video');
+            if (videoEl) videoEl.srcObject = null;
+            const placeholder = document.getElementById('camera-placeholder');
+            if (placeholder) placeholder.classList.remove('hidden');
+        }
+
+        function testCameraModal() {
+            startCamera();
+            alertBox("Kamera aktif. Tampilan live stream sedang diproses.");
+        }
+
+        /* ================= 5. GAME LOGIC & TIMER ================= */
+        function startGame() {
+            if (questionBank.length === 0) {
+                alertBox("Bank soal belum tersedia! Silakan tambahkan soal atau impor file JSON terlebih dahulu.");
+                return;
+            }
+
+            // Shuffle and pick up to 10 questions
+            const shuffled = [...questionBank].sort(() => 0.5 - Math.random());
+            activeGameQuestions = shuffled.slice(0, 10);
+            
+            currentQuestionIndex = 0;
+            score = 0;
+            correctCount = 0;
+
+            document.getElementById('page-home').classList.add('hidden');
+            document.getElementById('page-game').classList.remove('hidden');
+            document.getElementById('page-game').classList.add('flex');
+            document.getElementById('btn-stop-game').classList.remove('hidden');
+
+            startCamera();
+            loadCurrentQuestion();
+        }
+
+        function loadCurrentQuestion() {
+            if (currentQuestionIndex >= activeGameQuestions.length) {
+                endGame();
+                return;
+            }
+
+            const q = activeGameQuestions[currentQuestionIndex];
+            document.getElementById('game-progress-label').innerText = `Soal ${currentQuestionIndex + 1} / ${activeGameQuestions.length}`;
+            document.getElementById('game-score-display').innerText = `Skor: ${score}`;
+            document.getElementById('game-question-text').innerText = q.pertanyaan;
+
+            // Reset overlays
+            document.getElementById('box-left').classList.remove('overlay-correct', 'overlay-wrong');
+            document.getElementById('box-right').classList.remove('overlay-correct', 'overlay-wrong');
+            document.getElementById('answer-overlay').classList.add('hidden');
+
+            // Speak question text clearly using Google Voice synth
+            speakQuestionText(q.pertanyaan);
+
+            // Timer setup
+            let timeLeft = parseInt(appConfig.timer) || 10;
+            document.getElementById('game-timer-display').innerText = timeLeft;
+
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('game-timer-display').innerText = timeLeft;
+                if (timeLeft <= 3 && timeLeft > 0) playBeep(600, 'sine', 0.1);
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    revealAnswer(q);
+                }
+            }, 1000);
+        }
+
+        function revealAnswer(question) {
+            window.speechSynthesis.cancel();
+            const correctKey = question.kunci_jawaban; // "A" or "B"
+            const lblAnswer = document.getElementById('lbl-answer-announcement');
+            const boxLeft = document.getElementById('box-left');
+            const boxRight = document.getElementById('box-right');
+            const overlay = document.getElementById('answer-overlay');
+
+            lblAnswer.innerText = `JAWABAN ${correctKey}`;
+            overlay.classList.remove('hidden');
+
+            if (correctKey === 'A') {
+                boxLeft.classList.add('overlay-correct');
+                boxRight.classList.add('overlay-wrong');
+                playBeep(880, 'triangle', 0.3); // Sound Effect Benar
+            } else {
+                boxRight.classList.add('overlay-correct');
+                boxLeft.classList.add('overlay-wrong');
+                playBeep(880, 'triangle', 0.3);
+            }
+
+            // Update score
+            score += 10;
+            correctCount++;
+
+            // Wait 3 seconds then go to next question automatically
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadCurrentQuestion();
+            }, 3000);
+        }
+
+        function stopGame() {
+            clearInterval(timerInterval);
+            window.speechSynthesis.cancel();
+            stopCamera();
+            document.getElementById('page-game').classList.add('hidden');
+            document.getElementById('page-game').classList.remove('flex');
+            document.getElementById('page-home').classList.remove('hidden');
+            document.getElementById('btn-stop-game').classList.add('hidden');
+        }
+
+        function endGame() {
+            clearInterval(timerInterval);
+            window.speechSynthesis.cancel();
+            stopCamera();
+
+            document.getElementById('final-score').innerText = score;
+            document.getElementById('final-detail').innerText = `Benar: ${correctCount} / ${activeGameQuestions.length} Soal`;
+            document.getElementById('modal-gameover').classList.remove('hidden');
+        }
+
+        function backToHome() {
+            document.getElementById('modal-gameover').classList.add('hidden');
+            stopGame();
+        }
+
+        /* ================= 6. TEACHER SETTINGS & BANK SOAL CRUD ================= */
+        function openTeacherSettings() {
+            document.getElementById('cfg-jenjang').value = appConfig.jenjang;
+            document.getElementById('cfg-mapel').value = appConfig.mapel;
+            document.getElementById('cfg-topik').value = appConfig.topik;
+            document.getElementById('cfg-tp').value = appConfig.tp;
+            document.getElementById('cfg-petunjuk').value = appConfig.petunjuk;
+            document.getElementById('cfg-timer').value = appConfig.timer;
+
+            renderQuestionList();
+            document.getElementById('modal-settings').classList.remove('hidden');
+        }
+
+        function closeTeacherSettings() {
+            document.getElementById('modal-settings').classList.add('hidden');
+        }
+
+        function saveTeacherSettings() {
+            appConfig.jenjang = document.getElementById('cfg-jenjang').value;
+            appConfig.mapel = document.getElementById('cfg-mapel').value;
+            appConfig.topik = document.getElementById('cfg-topik').value;
+            appConfig.tp = document.getElementById('cfg-tp').value;
+            appConfig.petunjuk = document.getElementById('cfg-petunjuk').value;
+            appConfig.timer = parseInt(document.getElementById('cfg-timer').value) || 10;
+
+            saveConfig();
+            updateUIHome();
+            closeTeacherSettings();
+            alertBox("Pengaturan berhasil disimpan!");
+        }
+
+        function renderQuestionList() {
+            const container = document.getElementById('question-list-container');
+            document.getElementById('count-question-total').innerText = questionBank.length;
+
+            if (questionBank.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-500 bg-slate-900/50 rounded-xl">Belum ada soal tersimpan.</div>`;
+                return;
+            }
+
+            container.innerHTML = questionBank.map((q, idx) => `
+                <div class="bg-slate-900/80 p-3 rounded-xl border border-slate-700/60 flex items-center justify-between gap-3">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="bg-indigo-900/60 text-indigo-300 text-[10px] font-bold px-2 py-0.5 rounded border border-indigo-700/40">#${idx + 1}</span>
+                            <span class="bg-slate-800 text-amber-400 text-[10px] font-bold px-2 py-0.5 rounded">Kunci: ${q.kunci_jawaban}</span>
+                            <span class="text-[10px] text-slate-400 font-semibold">${q.tingkat_kesulitan || 'Mudah'}</span>
+                        </div>
+                        <p class="text-xs text-slate-200 truncate font-medium">${q.pertanyaan}</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="editQuestionItem(${idx})" class="p-1.5 text-sky-400 hover:bg-slate-800 rounded-lg transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                        </button>
+                        <button onclick="deleteQuestionItem(${idx})" class="p-1.5 text-rose-400 hover:bg-slate-800 rounded-lg transition">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openFormAddQuestion() {
+            document.getElementById('lbl-question-form-title').innerText = "Tambah Soal Baru";
+            document.getElementById('form-question-id').value = "";
+            document.getElementById('form-question-text').value = "";
+            document.getElementById('form-question-key').value = "A";
+            document.getElementById('form-question-level').value = "Mudah";
+            document.getElementById('form-question-explain').value = "";
+            document.getElementById('modal-question-form').classList.remove('hidden');
+        }
+
+        function editQuestionItem(index) {
+            const q = questionBank[index];
+            document.getElementById('lbl-question-form-title').innerText = "Edit Soal #" + (index + 1);
+            document.getElementById('form-question-id').value = index;
+            document.getElementById('form-question-text').value = q.pertanyaan;
+            document.getElementById('form-question-key').value = q.kunci_jawaban;
+            document.getElementById('form-question-level').value = q.tingkat_kesulitan || "Mudah";
+            document.getElementById('form-question-explain').value = q.pembahasan || "";
+            document.getElementById('modal-question-form').classList.remove('hidden');
+        }
+
+        function closeQuestionForm() {
+            document.getElementById('modal-question-form').classList.add('hidden');
+        }
+
+        function saveQuestionItem() {
+            const text = document.getElementById('form-question-text').value.trim();
+            const key = document.getElementById('form-question-key').value;
+            const level = document.getElementById('form-question-level').value;
+            const explain = document.getElementById('form-question-explain').value.trim();
+            const editId = document.getElementById('form-question-id').value;
+
+            if (!text) {
+                alertBox("Teks pertanyaan tidak boleh kosong!");
+                return;
+            }
+
+            const item = {
+                pertanyaan: text,
+                kunci_jawaban: key,
+                tingkat_kesulitan: level,
+                pembahasan: explain || "Tidak ada pembahasan."
+            };
+
+            if (editId !== "") {
+                questionBank[parseInt(editId)] = item;
+            } else {
+                questionBank.push(item);
+            }
+
+            saveQuestions();
+            renderQuestionList();
+            closeQuestionForm();
+            alertBox("Soal berhasil disimpan!");
+        }
+
+        function deleteQuestionItem(index) {
+            questionBank.splice(index, 1);
+            saveQuestions();
+            renderQuestionList();
+        }
+
+        function resetDefaultQuestions() {
+            questionBank = [...default100Questions];
+            saveQuestions();
+            renderQuestionList();
+            alertBox("Bank Soal di-reset ke 100 soal default (Sinonim & Antonim)!");
+        }
+
+        function exportQuestionsJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(questionBank, null, 2));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "bank_soal_kamera.json");
+            dlAnchorElem.click();
+        }
+
+        function importQuestionsJSON(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (Array.isArray(parsed)) {
+                        questionBank = parsed;
+                        saveQuestions();
+                        renderQuestionList();
+                        alertBox("Berhasil mengimpor " + parsed.length + " soal!");
+                    }
+                } catch(err) { alertBox("File JSON tidak valid!"); }
+            };
+            if(event.target.files[0]) fileReader.readAsText(event.target.files[0]);
+        }
+
+        /* ================= 7. FULLSCREEN TOGGLE ================= */
+        function toggleFullscreen() {
+            if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                if (document.documentElement.requestFullscreen) {
+                    document.documentElement.requestFullscreen();
+                } else if (document.documentElement.msRequestFullscreen) {
+                    document.documentElement.msRequestFullscreen();
+                } else if (document.documentElement.mozRequestFullScreen) {
+                    document.documentElement.mozRequestFullScreen();
+                } else if (document.documentElement.webkitRequestFullscreen) {
+                    document.documentElement.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.msExitFullscreen) {
+                    document.msExitFullscreen();
+                } else if (document.mozCancelFullScreen) {
+                    document.mozCancelFullScreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', handleFSChange);
+        document.addEventListener('webkitfullscreenchange', handleFSChange);
+        document.addEventListener('mozfullscreenchange', handleFSChange);
+
+        function handleFSChange() {
+            const isFS = !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement);
+            const lbl = document.getElementById('lbl-fullscreen');
+            const iconEnter = document.getElementById('icon-fs-enter');
+            const iconExit = document.getElementById('icon-fs-exit');
+
+            if (isFS) {
+                lbl.innerText = "Keluar Layar Penuh";
+                iconEnter.classList.add('hidden');
+                iconExit.classList.remove('hidden');
+            } else {
+                lbl.innerText = "Layar Penuh";
+                iconEnter.classList.remove('hidden');
+                iconExit.classList.add('hidden');
+            }
+        }
+
+        /* Custom Alert Helper */
+        function alertBox(msg) {
+            const box = document.getElementById('custom-alert');
+            document.getElementById('custom-alert-msg').innerText = msg;
+            box.classList.remove('hidden');
+            setTimeout(() => { box.classList.add('hidden'); }, 3500);
+        }
+    </script>
+</body>
+</html>
